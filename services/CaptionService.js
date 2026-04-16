@@ -78,32 +78,69 @@ async function callGroq(prompt) {
   } finally { clearTimeout(timer); }
 }
 
+const OR_MODELS = [
+  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
+  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-3-27b-it:free',
+  'meta-llama/llama-3.2-3b-instruct:free'
+];
+
+function stripThinking(text) {
+  if (!text) return text;
+  const afterThink = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  return afterThink || text.trim();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 async function callOpenRouter(prompt) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY not set');
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), brand.AI_TIMEOUT_MS);
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': `https://${brand.WEBSITE}`,
-        'X-Title': brand.BRAND_NAME
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3-8b-instruct:free',
-        messages: [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }],
-        max_tokens: 500,
-        temperature: 0.7
-      }),
-      signal: controller.signal
-    });
-    if (!res.ok) { const t = await res.text(); throw new Error(`OpenRouter ${res.status}: ${t}`); }
-    const data = await res.json();
-    return data.choices[0].message.content.trim();
-  } finally { clearTimeout(timer); }
+
+  let lastErr;
+  for (const model of OR_MODELS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), brand.AI_TIMEOUT_MS + 5000);
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': `https://${brand.WEBSITE}`,
+          'X-Title': brand.BRAND_NAME
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }],
+          max_tokens: 1500,
+          temperature: 0.7
+        }),
+        signal: controller.signal
+      });
+      if (res.status === 429) {
+        const t = await res.text();
+        console.warn(`[CaptionService] ${model} rate-limited, trying next...`);
+        lastErr = new Error(`OpenRouter 429: ${t}`);
+        await sleep(1000);
+        continue;
+      }
+      if (!res.ok) { const t = await res.text(); throw new Error(`OpenRouter ${res.status}: ${t}`); }
+      const data = await res.json();
+      const raw = data.choices?.[0]?.message?.content;
+      if (!raw) throw new Error('Empty response from model');
+      const content = stripThinking(raw);
+      if (content.length < 40) throw new Error(`Response too short (${content.length} chars): "${content}"`);
+      return content;
+    } catch (err) {
+      if (!err.message.includes('429')) console.warn(`[CaptionService] Model ${model} failed: ${err.message}`);
+      lastErr = err;
+    } finally { clearTimeout(timer); }
+  }
+  throw lastErr;
 }
 
 async function generateCaptionForPlatform(template, property, tone) {
@@ -143,11 +180,9 @@ async function generateCaptionForPlatform(template, property, tone) {
 }
 
 async function generateCaptions(property, tone) {
-  const [tiktok, instagram, facebook] = await Promise.all([
-    generateCaptionForPlatform(tiktokTemplate, property, tone),
-    generateCaptionForPlatform(instagramTemplate, property, tone),
-    generateCaptionForPlatform(facebookTemplate, property, tone)
-  ]);
+  const tiktok    = await generateCaptionForPlatform(tiktokTemplate,    property, tone);
+  const instagram = await generateCaptionForPlatform(instagramTemplate, property, tone);
+  const facebook  = await generateCaptionForPlatform(facebookTemplate,  property, tone);
   return { tiktok, instagram, facebook };
 }
 

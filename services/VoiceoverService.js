@@ -25,7 +25,7 @@ async function callAI(system, user) {
           'X-Title': brand.BRAND_NAME
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3-8b-instruct:free',
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
           messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
           max_tokens: 250, temperature: 0.6
         }),
