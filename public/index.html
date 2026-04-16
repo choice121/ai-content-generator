@@ -2,104 +2,210 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Choice Properties — AI Content Generator</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="logo">Choice Properties</div>
-      <p class="tagline">AI Content Generator</p>
+
+  <div class="app-shell">
+
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="logo-block">
+          <span class="logo-name">Choice Properties</span>
+          <span class="logo-sub">AI Content Generator</span>
+        </div>
+        <button class="nav-btn" id="navFeedbackBtn" onclick="showTab('feedback')">Brand Learning</button>
+      </div>
     </header>
 
     <main>
-      <section class="input-section">
-        <label for="propertyInput">Property URL or Listing ID</label>
-        <input
-          type="text"
-          id="propertyInput"
-          placeholder="https://choiceproperties.com/property/..."
-          autocomplete="off"
-          autocorrect="off"
-          spellcheck="false"
-        />
 
-        <label for="toneSelect">Writing Tone</label>
-        <select id="toneSelect">
-          <option value="professional">Professional (default)</option>
-          <option value="luxury">Luxury</option>
-          <option value="casual">Casual</option>
-          <option value="urgent">Urgent</option>
-          <option value="friendly">Friendly</option>
-        </select>
+      <!-- ── INPUT CARD ── -->
+      <section class="card" id="inputCard">
+        <h2 class="card-title">Generate Content</h2>
 
-        <button id="generateBtn" onclick="handleGenerate()">Generate Content</button>
+        <div class="field-group">
+          <label for="propertyInput">Property URL or Listing ID</label>
+          <input type="text" id="propertyInput"
+            placeholder="https://choiceproperties.com/property/..."
+            autocomplete="off" autocorrect="off" spellcheck="false" />
+        </div>
+
+        <div class="field-row">
+          <div class="field-group half">
+            <label for="toneSelect">Writing Tone</label>
+            <select id="toneSelect">
+              <option value="professional">Professional</option>
+              <option value="luxury">Luxury</option>
+              <option value="casual">Casual</option>
+              <option value="urgent">Urgent</option>
+              <option value="friendly">Friendly</option>
+            </select>
+          </div>
+          <div class="field-group half">
+            <label for="videoFormatSelect">Video Format</label>
+            <select id="videoFormatSelect">
+              <option value="tiktok">TikTok / Reels (9:16)</option>
+              <option value="square">Instagram Feed (1:1)</option>
+              <option value="landscape">Facebook (16:9)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="action-grid">
+          <button class="btn primary" id="genCaptionsBtn" onclick="handleGenerateCaptions()">
+            Generate Captions
+          </button>
+          <button class="btn secondary" id="genImagesBtn" onclick="handleDownloadImages()" title="Download captions + watermarked images as ZIP">
+            Download Images ZIP
+          </button>
+        </div>
       </section>
 
-      <section id="loadingSection" class="hidden">
-        <div class="loader"></div>
-        <p class="loading-text">Generating your content — this takes about 10 seconds...</p>
+      <!-- ── LOADING ── -->
+      <section class="card loading-card hidden" id="loadingCard">
+        <div class="spinner"></div>
+        <p class="loading-msg" id="loadingMsg">Generating your content — this takes about 10 seconds...</p>
       </section>
 
-      <section id="errorSection" class="hidden">
-        <div class="error-box" id="errorMessage"></div>
-      </section>
+      <!-- ── ERROR ── -->
+      <div class="error-box hidden" id="errorBox"></div>
 
-      <section id="resultsSection" class="hidden">
-        <h2 class="results-title" id="propertyTitle"></h2>
+      <!-- ── RESULTS: CAPTIONS ── -->
+      <section class="hidden" id="resultsSection">
+        <h3 class="section-heading" id="resultPropertyTitle"></h3>
 
-        <div class="platform-card" id="tiktokCard">
-          <div class="platform-header" onclick="toggleCard('tiktok')">
+        <!-- TikTok -->
+        <div class="platform-card" id="card-tiktok">
+          <div class="platform-header" onclick="togglePlatform('tiktok')">
             <span class="platform-icon">🎵</span>
             <span class="platform-name">TikTok</span>
-            <span class="toggle-icon" id="tiktokToggle">▼</span>
+            <span class="platform-arrow" id="arrow-tiktok">▼</span>
           </div>
-          <div class="platform-body" id="tiktokBody">
-            <textarea class="caption-box" id="tiktokCaption" readonly></textarea>
-            <button class="copy-btn" onclick="copyCaption('tiktok')">Copy Caption</button>
+          <div class="platform-body" id="body-tiktok">
+            <textarea class="caption-textarea" id="caption-tiktok" readonly></textarea>
+            <div class="caption-actions">
+              <button class="btn-sm" onclick="copyCaption('tiktok')">Copy</button>
+              <button class="btn-sm approve" onclick="approveCaption('tiktok')" title="Save as approved example for future AI prompts">👍 Approve</button>
+            </div>
           </div>
         </div>
 
-        <div class="platform-card" id="instagramCard">
-          <div class="platform-header" onclick="toggleCard('instagram')">
+        <!-- Instagram -->
+        <div class="platform-card" id="card-instagram">
+          <div class="platform-header" onclick="togglePlatform('instagram')">
             <span class="platform-icon">📸</span>
             <span class="platform-name">Instagram</span>
-            <span class="toggle-icon" id="instagramToggle">▼</span>
+            <span class="platform-arrow" id="arrow-instagram">▼</span>
           </div>
-          <div class="platform-body" id="instagramBody">
-            <textarea class="caption-box" id="instagramCaption" readonly></textarea>
-            <button class="copy-btn" onclick="copyCaption('instagram')">Copy Caption</button>
+          <div class="platform-body" id="body-instagram">
+            <textarea class="caption-textarea" id="caption-instagram" readonly></textarea>
+            <div class="caption-actions">
+              <button class="btn-sm" onclick="copyCaption('instagram')">Copy</button>
+              <button class="btn-sm approve" onclick="approveCaption('instagram')" title="Save as approved example for future AI prompts">👍 Approve</button>
+            </div>
           </div>
         </div>
 
-        <div class="platform-card" id="facebookCard">
-          <div class="platform-header" onclick="toggleCard('facebook')">
+        <!-- Facebook -->
+        <div class="platform-card" id="card-facebook">
+          <div class="platform-header" onclick="togglePlatform('facebook')">
             <span class="platform-icon">📘</span>
             <span class="platform-name">Facebook</span>
-            <span class="toggle-icon" id="facebookToggle">▼</span>
+            <span class="platform-arrow" id="arrow-facebook">▼</span>
           </div>
-          <div class="platform-body" id="facebookBody">
-            <textarea class="caption-box" id="facebookCaption" readonly></textarea>
-            <button class="copy-btn" onclick="copyCaption('facebook')">Copy Caption</button>
+          <div class="platform-body" id="body-facebook">
+            <textarea class="caption-textarea" id="caption-facebook" readonly></textarea>
+            <div class="caption-actions">
+              <button class="btn-sm" onclick="copyCaption('facebook')">Copy</button>
+              <button class="btn-sm approve" onclick="approveCaption('facebook')" title="Save as approved example for future AI prompts">👍 Approve</button>
+            </div>
           </div>
         </div>
 
-        <div class="download-section">
-          <button class="download-btn" id="downloadCaptionsBtn" onclick="downloadCaptions()">
-            Download Captions (.txt)
+        <!-- Caption Downloads -->
+        <div class="download-row">
+          <button class="btn secondary" onclick="downloadCaptionsTxt()">Download Captions (.txt)</button>
+          <button class="btn secondary" onclick="handleDownloadImages()">Download Images (.zip)</button>
+        </div>
+
+        <!-- ── VIDEO GENERATION ── Phase 2 + 3 -->
+        <div class="card video-card">
+          <h3 class="card-title">Generate Video</h3>
+          <p class="card-desc">Create a branded slideshow video from property photos. This takes 30–60 seconds.</p>
+
+          <div class="toggle-row">
+            <label class="toggle-label">
+              <input type="checkbox" id="voiceoverToggle" />
+              <span class="toggle-switch"></span>
+              Include AI voiceover narration
+            </label>
+          </div>
+
+          <button class="btn primary full" id="genVideoBtn" onclick="handleGenerateVideo()">
+            🎬 Generate Video
           </button>
-          <button class="download-btn secondary" id="downloadImagesBtn" onclick="downloadImages()">
-            Download Images (.zip)
-          </button>
+
+          <div class="video-progress hidden" id="videoProgress">
+            <div class="spinner small"></div>
+            <span id="videoProgressMsg">Starting...</span>
+          </div>
+
+          <div class="video-result hidden" id="videoResult">
+            <video id="videoPreview" controls playsinline class="video-preview"></video>
+            <div class="video-script hidden" id="videoScriptBlock">
+              <h4>Voiceover Script</h4>
+              <p id="videoScriptText"></p>
+            </div>
+            <button class="btn primary full" id="downloadVideoBtn" onclick="downloadVideo()">
+              Download Video (.mp4)
+            </button>
+          </div>
         </div>
       </section>
+
+      <!-- ── BRAND LEARNING: FEEDBACK TAB ── Phase 4 -->
+      <section class="hidden" id="feedbackTab">
+        <div class="card">
+          <div class="tab-header">
+            <h2 class="card-title">Brand Learning</h2>
+            <button class="btn-sm" onclick="showTab('generate')">← Back</button>
+          </div>
+          <p class="card-desc">
+            Approved captions are automatically used to improve future AI generation. Banned phrases are excluded from all outputs.
+          </p>
+
+          <div class="stats-grid" id="feedbackStats">
+            <div class="stat-box"><span class="stat-num" id="statTotal">—</span><span class="stat-lbl">Total Approved</span></div>
+            <div class="stat-box"><span class="stat-num" id="statTiktok">—</span><span class="stat-lbl">TikTok</span></div>
+            <div class="stat-box"><span class="stat-num" id="statInsta">—</span><span class="stat-lbl">Instagram</span></div>
+            <div class="stat-box"><span class="stat-num" id="statFb">—</span><span class="stat-lbl">Facebook</span></div>
+          </div>
+
+          <h3 class="section-subheading">Banned Phrases</h3>
+          <div class="banned-input-row">
+            <input type="text" id="bannedPhraseInput" placeholder="Add a phrase to exclude from all outputs..." />
+            <button class="btn-sm accent" onclick="addBannedPhrase()">Add</button>
+          </div>
+          <div class="banned-list" id="bannedList"></div>
+
+          <h3 class="section-subheading" style="margin-top:24px">Recent Approved Captions</h3>
+          <div id="approvedList" class="approved-list"></div>
+        </div>
+      </section>
+
     </main>
 
-    <footer>
+    <footer class="site-footer">
       <p>Choice Properties &mdash; Your trust is our standard.</p>
     </footer>
+
   </div>
+
+  <div class="toast hidden" id="toast"></div>
 
   <script src="app.js"></script>
 </body>

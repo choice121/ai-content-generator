@@ -9,6 +9,7 @@
   "dependencies": {
     "archiver": "^6.0.2",
     "express": "^4.22.1",
+    "msedge-tts": "^2.0.5",
     "node-fetch": "^2.7.0",
     "sharp": "^0.33.5"
   }

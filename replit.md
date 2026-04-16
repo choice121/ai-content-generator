@@ -2,60 +2,102 @@
 
 ## Overview
 
-An AI-powered social media content generator for Choice Properties real estate listings. Given a property URL or listing ID, it generates platform-optimised captions for TikTok, Instagram, and Facebook, and produces watermarked property images for each platform. Output is packaged as a downloadable ZIP.
+A fully-featured AI-powered social media content generator for Choice Properties real estate listings. Covers all four planned phases: captions, watermarked images, slideshow video, voiceover narration, and brand learning.
 
 ## Architecture
 
 - **Runtime:** Node.js 20 with Express.js
 - **Port:** 5000 (0.0.0.0)
 - **Frontend:** Vanilla HTML/CSS/JS (mobile-first SPA) served from `/public/`
-- **Backend:** Express.js with four services in `/services/`
+- **Backend:** Express.js orchestrating five services in `/services/`
 
 ## Project Structure
 
 ```
-server.js              — Express HTTP server and route definitions
-brand.config.js        — Brand settings (single source of truth)
-package.json           — Dependencies
+server.js                  — Express HTTP server and all route definitions
+brand.config.js            — Brand settings (single source of truth)
+package.json               — Dependencies
 
 /services/
-  PropertyService.js   — Supabase data fetching and normalisation
-  CaptionService.js    — AI caption generation (Groq + OpenRouter fallback)
-  ImageService.js      — Image watermarking and resizing via Sharp
-  ZipService.js        — ZIP packaging of captions and images
+  PropertyService.js       — Supabase data fetching and normalisation
+  CaptionService.js        — AI captions (Groq primary, OpenRouter fallback) + Phase 4 enrichment
+  ImageService.js          — Image watermarking and resizing via Sharp
+  ZipService.js            — ZIP packaging of captions and images
+  VideoService.js          — Phase 2: FFmpeg slideshow with transitions + brand cards
+  VoiceoverService.js      — Phase 3: Edge TTS narration + audio/video merge
+  FeedbackService.js       — Phase 4: Approved captions, banned phrases, brand learning
 
 /prompts/
-  tiktok.js            — TikTok prompt template
-  instagram.js         — Instagram prompt template
-  facebook.js          — Facebook prompt template
+  tiktok.js / instagram.js / facebook.js
 
 /public/
-  index.html           — Mobile-first SPA UI
-  app.js               — Frontend JS
-  style.css            — Mobile-optimised styles
+  index.html / app.js / style.css
+
+/data/
+  feedback.json            — Phase 4 persistent brand learning data
 ```
 
 ## API Routes
 
-- `POST /generate-captions` — Returns JSON captions for all three platforms
-- `POST /generate` — Returns a ZIP with captions.txt and watermarked images
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/generate-captions` | JSON: AI captions for all 3 platforms |
+| POST | `/generate-images` | ZIP: watermarked images + captions |
+| POST | `/generate` | ZIP: same as above (legacy) |
+| POST | `/generate-video` | Starts video job; returns jobId immediately |
+| GET | `/video-status/:jobId` | Poll video generation progress |
+| GET | `/video-download/:jobId` | Download completed MP4 |
+| POST | `/feedback/approve` | Save an approved caption |
+| DELETE | `/feedback/approved/:id` | Remove an approved caption |
+| GET | `/feedback/stats` | Get all feedback stats + banned phrases |
+| POST | `/feedback/banned` | Add a banned phrase |
+| DELETE | `/feedback/banned` | Remove a banned phrase |
 
 ## Required Environment Variables
 
 | Variable | Purpose |
 |----------|---------|
 | `SUPABASE_URL` | Supabase REST API base URL |
-| `SUPABASE_ANON_KEY` | Supabase authentication key |
-| `GROQ_API_KEY` | Primary AI model (Groq Llama 3) |
+| `SUPABASE_ANON_KEY` | Supabase auth key |
+| `GROQ_API_KEY` | Primary AI (Groq Llama 3, free) |
 | `OPENROUTER_API_KEY` | AI fallback (OpenRouter free models) |
 
-## Key Design Decisions
+## Phases Implemented
 
-- All image processing is in-memory (no disk writes)
-- Captions are generated via the `/generate-captions` endpoint for faster UX; images are downloaded separately on-demand
-- Groq is the primary AI; OpenRouter is the automatic fallback if Groq fails
-- Max 6 images per request; each resized for TikTok (1080x1920), Instagram (1080x1080), and Facebook (1200x630)
-- Watermark applied bottom-right with white text and drop shadow
+### Phase 1 — Captions + Watermarked Images
+- Property lookup from Supabase
+- AI captions via Groq/OpenRouter for TikTok, Instagram, Facebook
+- Sharp image watermarking + platform-specific resizing
+- Downloadable ZIP
+
+### Phase 2 — Slideshow Video Generation
+- FFmpeg-based MP4 slideshow from property photos
+- Sharp SVG text overlays (title, price, beds/baths, features)
+- Smooth xfade transitions between slides
+- Branded intro + outro cards
+- Three formats: 9:16 (TikTok), 1:1 (Instagram), 16:9 (Facebook)
+- Async job system (POST → jobId → poll → download)
+
+### Phase 3 — Voiceover + Enhanced Video
+- AI voiceover script generated by Groq
+- Speech synthesis via Microsoft Edge TTS (no API key, no cost)
+- Audio merged into video via FFmpeg
+- Script displayed in UI alongside video
+
+### Phase 4 — Brand Learning
+- Approve captions directly from results UI
+- Approved examples automatically enriched into future AI prompts
+- Banned phrases excluded from all AI outputs
+- Stats dashboard (per-platform approval counts)
+- All data persisted to `data/feedback.json`
+
+## System Dependencies
+
+- `ffmpeg` 7.1.1 — video generation and audio merging
+- `sharp` — image processing and SVG text overlays
+- `msedge-tts` — Microsoft Edge text-to-speech synthesis
+- `archiver` — ZIP packaging
+- `node-fetch` — HTTP requests to Supabase/Groq/OpenRouter
 
 ## Workflow
 
