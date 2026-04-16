@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Choice Properties — AI Content Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">Choice Properties</div>
+      <p class="tagline">AI Content Generator</p>
+    </header>
+
+    <main>
+      <section class="input-section">
+        <label for="propertyInput">Property URL or Listing ID</label>
+        <input
+          type="text"
+          id="propertyInput"
+          placeholder="https://choiceproperties.com/property/..."
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+
+        <label for="toneSelect">Writing Tone</label>
+        <select id="toneSelect">
+          <option value="professional">Professional (default)</option>
+          <option value="luxury">Luxury</option>
+          <option value="casual">Casual</option>
+          <option value="urgent">Urgent</option>
+          <option value="friendly">Friendly</option>
+        </select>
+
+        <button id="generateBtn" onclick="handleGenerate()">Generate Content</button>
+      </section>
+
+      <section id="loadingSection" class="hidden">
+        <div class="loader"></div>
+        <p class="loading-text">Generating your content — this takes about 10 seconds...</p>
+      </section>
+
+      <section id="errorSection" class="hidden">
+        <div class="error-box" id="errorMessage"></div>
+      </section>
+
+      <section id="resultsSection" class="hidden">
+        <h2 class="results-title" id="propertyTitle"></h2>
+
+        <div class="platform-card" id="tiktokCard">
+          <div class="platform-header" onclick="toggleCard('tiktok')">
+            <span class="platform-icon">🎵</span>
+            <span class="platform-name">TikTok</span>
+            <span class="toggle-icon" id="tiktokToggle">▼</span>
+          </div>
+          <div class="platform-body" id="tiktokBody">
+            <textarea class="caption-box" id="tiktokCaption" readonly></textarea>
+            <button class="copy-btn" onclick="copyCaption('tiktok')">Copy Caption</button>
+          </div>
+        </div>
+
+        <div class="platform-card" id="instagramCard">
+          <div class="platform-header" onclick="toggleCard('instagram')">
+            <span class="platform-icon">📸</span>
+            <span class="platform-name">Instagram</span>
+            <span class="toggle-icon" id="instagramToggle">▼</span>
+          </div>
+          <div class="platform-body" id="instagramBody">
+            <textarea class="caption-box" id="instagramCaption" readonly></textarea>
+            <button class="copy-btn" onclick="copyCaption('instagram')">Copy Caption</button>
+          </div>
+        </div>
+
+        <div class="platform-card" id="facebookCard">
+          <div class="platform-header" onclick="toggleCard('facebook')">
+            <span class="platform-icon">📘</span>
+            <span class="platform-name">Facebook</span>
+            <span class="toggle-icon" id="facebookToggle">▼</span>
+          </div>
+          <div class="platform-body" id="facebookBody">
+            <textarea class="caption-box" id="facebookCaption" readonly></textarea>
+            <button class="copy-btn" onclick="copyCaption('facebook')">Copy Caption</button>
+          </div>
+        </div>
+
+        <div class="download-section">
+          <button class="download-btn" id="downloadCaptionsBtn" onclick="downloadCaptions()">
+            Download Captions (.txt)
+          </button>
+          <button class="download-btn secondary" id="downloadImagesBtn" onclick="downloadImages()">
+            Download Images (.zip)
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Choice Properties &mdash; Your trust is our standard.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
