@@ -108,16 +108,38 @@ async function callOpenRouter(prompt) {
 
 async function generateCaptionForPlatform(template, property, tone) {
   const prompt = buildPrompt(template, property, tone);
-  try {
-    return await callGroq(prompt);
-  } catch (groqErr) {
-    console.error(`[CaptionService] Groq failed (${template.platform}): ${groqErr.message}. Trying OpenRouter...`);
-    try { return await callOpenRouter(prompt); }
-    catch (orErr) {
-      console.error(`[CaptionService] OpenRouter also failed (${template.platform}): ${orErr.message}`);
+
+  // OpenRouter is primary (works in more regions). Groq is fallback if available.
+  const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+  const hasGroq       = !!process.env.GROQ_API_KEY;
+
+  if (hasOpenRouter) {
+    try {
+      return await callOpenRouter(prompt);
+    } catch (orErr) {
+      console.error(`[CaptionService] OpenRouter failed (${template.platform}): ${orErr.message}.${hasGroq ? ' Trying Groq...' : ''}`);
+      if (hasGroq) {
+        try { return await callGroq(prompt); }
+        catch (groqErr) {
+          console.error(`[CaptionService] Groq also failed (${template.platform}): ${groqErr.message}`);
+          return null;
+        }
+      }
       return null;
     }
   }
+
+  if (hasGroq) {
+    try {
+      return await callGroq(prompt);
+    } catch (groqErr) {
+      console.error(`[CaptionService] Groq failed (${template.platform}): ${groqErr.message}`);
+      return null;
+    }
+  }
+
+  console.error('[CaptionService] No AI API key configured (OPENROUTER_API_KEY or GROQ_API_KEY).');
+  return null;
 }
 
 async function generateCaptions(property, tone) {

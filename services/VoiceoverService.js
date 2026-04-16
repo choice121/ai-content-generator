@@ -8,12 +8,68 @@ const brand = require('../brand.config');
 
 const execFileAsync = promisify(execFile);
 
-async function generateScript(property, tone) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not set');
+async function callAI(system, user) {
+  const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+  const hasGroq       = !!process.env.GROQ_API_KEY;
 
+  async function tryOpenRouter() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), brand.AI_TIMEOUT_MS);
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': `https://${brand.WEBSITE}`,
+          'X-Title': brand.BRAND_NAME
+        },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-3-8b-instruct:free',
+          messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+          max_tokens: 250, temperature: 0.6
+        }),
+        signal: controller.signal
+      });
+      if (!res.ok) throw new Error(`OpenRouter ${res.status}`);
+      const data = await res.json();
+      return data.choices[0].message.content.trim();
+    } finally { clearTimeout(timer); }
+  }
+
+  async function tryGroq() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), brand.AI_TIMEOUT_MS);
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3-8b-8192',
+          messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+          max_tokens: 250, temperature: 0.6
+        }),
+        signal: controller.signal
+      });
+      if (!res.ok) throw new Error(`Groq ${res.status}`);
+      const data = await res.json();
+      return data.choices[0].message.content.trim();
+    } finally { clearTimeout(timer); }
+  }
+
+  if (hasOpenRouter) {
+    try { return await tryOpenRouter(); } catch (err) {
+      console.error(`[VoiceoverService] OpenRouter failed: ${err.message}`);
+      if (hasGroq) return tryGroq();
+    }
+  }
+  if (hasGroq) return tryGroq();
+  throw new Error('No AI API key configured (OPENROUTER_API_KEY or GROQ_API_KEY)');
+}
+
+async function generateScript(property, tone) {
   const activeTone = tone || brand.DEFAULT_TONE;
-  const loc = [property.location?.city, property.location?.state].filter(Boolean).join(', ');
+  const loc      = [property.location?.city, property.location?.state].filter(Boolean).join(', ');
   const features = (property.features || []).slice(0, 3).join(', ');
 
   const system = `You are a professional real estate narrator for ${brand.BRAND_NAME}. 
@@ -34,27 +90,7 @@ Brand: ${brand.BRAND_NAME} — "${brand.TAGLINE}"
 End with a clear call to action mentioning ${brand.WEBSITE}.
 Write ONLY the spoken script text. No stage directions. No quotation marks.`;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), brand.AI_TIMEOUT_MS);
-
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-        max_tokens: 200,
-        temperature: 0.6
-      }),
-      signal: controller.signal
-    });
-    if (!res.ok) throw new Error(`Groq error ${res.status}`);
-    const data = await res.json();
-    return data.choices[0].message.content.trim();
-  } finally {
-    clearTimeout(timer);
-  }
+  return callAI(system, user);
 }
 
 async function synthesizeSpeech(text, outputPath) {
